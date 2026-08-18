@@ -1,0 +1,10 @@
+obj/
+src/**/bin/
+src/**/obj/
+tests/**/bin/
+tests/**/obj/
+.dotnet-cli/
+.validation-deps/
+artifacts/
+*.user
+*.suo
