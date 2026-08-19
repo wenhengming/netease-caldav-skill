@@ -8,3 +8,5 @@ tests/**/obj/
 artifacts/
 *.user
 *.suo
+caldav.env
+.env.local
