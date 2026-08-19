@@ -13,8 +13,21 @@ public static class IcsCodec
         {
             if (!lines[i].Equals("BEGIN:VEVENT", StringComparison.OrdinalIgnoreCase)) continue;
             var fields = new Dictionary<string, (string RawKey, string Value)>(StringComparer.OrdinalIgnoreCase);
+            var nestedComponentDepth = 0;
             for (i++; i < lines.Count && !lines[i].Equals("END:VEVENT", StringComparison.OrdinalIgnoreCase); i++)
             {
+                if (lines[i].StartsWith("BEGIN:", StringComparison.OrdinalIgnoreCase))
+                {
+                    nestedComponentDepth++;
+                    continue;
+                }
+                if (lines[i].StartsWith("END:", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (nestedComponentDepth > 0) nestedComponentDepth--;
+                    continue;
+                }
+                if (nestedComponentDepth > 0) continue;
+
                 var colon = lines[i].IndexOf(':');
                 if (colon <= 0) continue;
                 var rawKey = lines[i][..colon];

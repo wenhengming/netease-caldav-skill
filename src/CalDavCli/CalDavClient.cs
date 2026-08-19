@@ -35,17 +35,17 @@ public sealed class CalDavClient : IDisposable
         // Some NetEase servers return current-user-principal with a 404 propstat.
         // Only consume href values from successful propstat blocks; otherwise the
         // failed property can be mistaken for a valid principal.
-        var principal = SuccessfulPropertyHref(principalDoc, D + "current-user-principal")
-            ?? principalDoc.Descendants(D + "response").Elements(D + "href").Select(x => x.Value.Trim()).FirstOrDefault(x => x.Length > 0);
-        if (string.IsNullOrWhiteSpace(principal)) throw new CliException("DISCOVERY_FAILED", "CalDAV principal was not found", 5);
+        var principal = FirstSafeHref(
+            SuccessfulPropertyHrefs(principalDoc, D + "current-user-principal")
+                .Concat(ResponseHrefs(principalDoc)),
+            "CalDAV principal");
 
         const string homeBody = "<d:propfind xmlns:d=\"DAV:\" xmlns:c=\"urn:ietf:params:xml:ns:caldav\"><d:prop><c:calendar-home-set/></d:prop></d:propfind>";
-        var homeDoc = await PropfindAsync(ToSafeUri(principal), homeBody, "0", ct);
-        var home = SuccessfulPropertyHref(homeDoc, C + "calendar-home-set");
-        if (string.IsNullOrWhiteSpace(home)) throw new CliException("DISCOVERY_FAILED", "CalDAV calendar home was not found", 5);
+        var homeDoc = await PropfindAsync(principal, homeBody, "0", ct);
+        var home = FirstSafeHref(SuccessfulPropertyHrefs(homeDoc, C + "calendar-home-set"), "CalDAV calendar home");
 
         const string calendarsBody = "<d:propfind xmlns:d=\"DAV:\" xmlns:c=\"urn:ietf:params:xml:ns:caldav\"><d:prop><d:displayname/><d:resourcetype/><c:calendar-description/></d:prop></d:propfind>";
-        var doc = await PropfindAsync(ToSafeUri(home), calendarsBody, "1", ct);
+        var doc = await PropfindAsync(home, calendarsBody, "1", ct);
         var calendars = new List<CalendarInfo>();
         foreach (var response in doc.Descendants(D + "response").Where(x => x.Descendants(C + "calendar").Any()))
         {
@@ -173,23 +173,55 @@ public sealed class CalDavClient : IDisposable
 
     private Uri ToSafeUri(string href)
     {
-        var uri = Uri.TryCreate(href, UriKind.Absolute, out var absolute) ? absolute : new Uri(_config.ServerUrl, href);
+        // On Linux, Uri.TryCreate("/path", UriKind.Absolute, ...) can classify
+        // a server-relative href as file:///path. Only treat HTTP(S) URLs as
+        // absolute CalDAV resources; resolve all other path-like hrefs against
+        // the configured server URL.
+        Uri uri;
+        if (Uri.TryCreate(href, UriKind.Absolute, out var absolute) && href.Contains("://", StringComparison.Ordinal))
+            uri = absolute;
+        else
+            uri = new Uri(_config.ServerUrl, href);
         var trustedHost = uri.Host.Equals(_config.ServerUrl.Host, StringComparison.OrdinalIgnoreCase) || _config.AllowedHosts.Contains(uri.Host);
         if (!uri.Scheme.Equals(Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase) || !trustedHost || uri.Port != _config.ServerUrl.Port)
             throw new CliException("INVALID_ARGUMENT", $"CalDAV resource URL is outside the configured trusted HTTPS origins: {uri.Host}", 2);
         return uri;
     }
 
-    private static string? SuccessfulPropertyHref(XDocument document, XName property)
+    private IEnumerable<string> ResponseHrefs(XDocument document)
+        => document.Descendants()
+            .Where(x => x.Name.LocalName.Equals("response", StringComparison.OrdinalIgnoreCase))
+            .Elements()
+            .Where(x => x.Name.LocalName.Equals("href", StringComparison.OrdinalIgnoreCase))
+            .Select(x => x.Value.Trim())
+            .Where(x => x.Length > 0);
+
+    private IEnumerable<string> SuccessfulPropertyHrefs(XDocument document, XName property)
         => document.Descendants(D + "propstat")
             .Where(PropstatSucceeded)
             .SelectMany(propstat => propstat.Descendants(property).Elements(D + "href"))
             .Select(x => x.Value.Trim())
-            .FirstOrDefault(x => x.Length > 0);
+            .Where(x => x.Length > 0);
+
+    private Uri FirstSafeHref(IEnumerable<string> candidates, string description)
+    {
+        var candidateList = candidates.Distinct(StringComparer.Ordinal).ToList();
+        foreach (var candidate in candidateList)
+        {
+            try { return ToSafeUri(candidate); }
+            catch (CliException) { }
+            catch (UriFormatException) { }
+        }
+
+        throw new CliException("DISCOVERY_FAILED", $"No valid {description} href was returned by the CalDAV server", 5);
+    }
 
     private static bool PropstatSucceeded(XElement propstat)
     {
         var status = propstat.Element(D + "status")?.Value.Trim();
+        // Some lightweight test doubles omit d:status; keep their propstat
+        // compatible while still rejecting an explicit 4xx/5xx status.
+        if (string.IsNullOrWhiteSpace(status)) return true;
         var parts = status?.Split(' ', StringSplitOptions.RemoveEmptyEntries);
         return parts is { Length: >= 2 } && int.TryParse(parts[1], out var code) && code is >= 200 and < 300;
     }

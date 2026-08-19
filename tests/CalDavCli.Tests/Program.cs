@@ -5,6 +5,7 @@ using NetEaseCalDav;
 var tests = new (string Name, Func<Task> Run)[]
 {
     ("ICS round-trip fields", TestIcs),
+    ("NetEase ICS extensions", TestNetEaseIcsExtensions),
     ("NetEase fallback discovery", TestFallbackDiscovery),
     ("Delete requires confirmation", TestDeleteConfirmation),
     ("Cross-origin href rejected", TestCrossOrigin),
@@ -29,6 +30,17 @@ static Task TestIcs()
     Assert(events[0].Summary == "Planning, review", "summary did not round-trip");
     Assert(events[0].Description == "Line 1\nLine 2", "description did not round-trip");
     Assert(warnings.Count == 0, "unexpected parse warning");
+    return Task.CompletedTask;
+}
+
+static Task TestNetEaseIcsExtensions()
+{
+    const string ics = "BEGIN:VCALENDAR\r\nPRODID:-//Netease Corporation//EN\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nUID:netease-1\r\nDTSTART;TZID=America/Los_Angeles:20260819T090000\r\nDTEND;TZID=America/Los_Angeles:20260819T100000\r\nSUMMARY:NetEase meeting\r\nX-HMC-ACTION:UPDATE\r\nBEGIN:VALARM\r\nACTION:DISPLAY\r\nDESCRIPTION:Reminder\r\nTRIGGER:-PT15M\r\nEND:VALARM\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n";
+    var warnings = new List<string>();
+    var events = IcsCodec.ParseEvents(ics, "https://calendar.example/netease.ics", "\"v1\"", warnings);
+    Assert(events.Count == 1, "NetEase extension event was not parsed");
+    Assert(events[0].Summary == "NetEase meeting", "NetEase event summary did not parse");
+    Assert(warnings.Count == 0, "NetEase extension produced an unexpected warning");
     return Task.CompletedTask;
 }
 
