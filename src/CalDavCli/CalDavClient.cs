@@ -32,13 +32,16 @@ public sealed class CalDavClient : IDisposable
     {
         const string principalBody = "<d:propfind xmlns:d=\"DAV:\"><d:prop><d:current-user-principal/></d:prop></d:propfind>";
         var principalDoc = await PropfindAsync(_config.ServerUrl, principalBody, "0", ct);
-        var principal = principalDoc.Descendants(D + "current-user-principal").Elements(D + "href").Select(x => x.Value.Trim()).FirstOrDefault(x => x.Length > 0)
+        // Some NetEase servers return current-user-principal with a 404 propstat.
+        // Only consume href values from successful propstat blocks; otherwise the
+        // failed property can be mistaken for a valid principal.
+        var principal = SuccessfulPropertyHref(principalDoc, D + "current-user-principal")
             ?? principalDoc.Descendants(D + "response").Elements(D + "href").Select(x => x.Value.Trim()).FirstOrDefault(x => x.Length > 0);
         if (string.IsNullOrWhiteSpace(principal)) throw new CliException("DISCOVERY_FAILED", "CalDAV principal was not found", 5);
 
         const string homeBody = "<d:propfind xmlns:d=\"DAV:\" xmlns:c=\"urn:ietf:params:xml:ns:caldav\"><d:prop><c:calendar-home-set/></d:prop></d:propfind>";
         var homeDoc = await PropfindAsync(ToSafeUri(principal), homeBody, "0", ct);
-        var home = homeDoc.Descendants(C + "calendar-home-set").Elements(D + "href").Select(x => x.Value.Trim()).FirstOrDefault(x => x.Length > 0);
+        var home = SuccessfulPropertyHref(homeDoc, C + "calendar-home-set");
         if (string.IsNullOrWhiteSpace(home)) throw new CliException("DISCOVERY_FAILED", "CalDAV calendar home was not found", 5);
 
         const string calendarsBody = "<d:propfind xmlns:d=\"DAV:\" xmlns:c=\"urn:ietf:params:xml:ns:caldav\"><d:prop><d:displayname/><d:resourcetype/><c:calendar-description/></d:prop></d:propfind>";
@@ -171,9 +174,24 @@ public sealed class CalDavClient : IDisposable
     private Uri ToSafeUri(string href)
     {
         var uri = Uri.TryCreate(href, UriKind.Absolute, out var absolute) ? absolute : new Uri(_config.ServerUrl, href);
-        if (!uri.Scheme.Equals(Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase) || !uri.Host.Equals(_config.ServerUrl.Host, StringComparison.OrdinalIgnoreCase) || uri.Port != _config.ServerUrl.Port)
-            throw new CliException("INVALID_ARGUMENT", "CalDAV resource URL must use the configured HTTPS origin", 2);
+        var trustedHost = uri.Host.Equals(_config.ServerUrl.Host, StringComparison.OrdinalIgnoreCase) || _config.AllowedHosts.Contains(uri.Host);
+        if (!uri.Scheme.Equals(Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase) || !trustedHost || uri.Port != _config.ServerUrl.Port)
+            throw new CliException("INVALID_ARGUMENT", $"CalDAV resource URL is outside the configured trusted HTTPS origins: {uri.Host}", 2);
         return uri;
+    }
+
+    private static string? SuccessfulPropertyHref(XDocument document, XName property)
+        => document.Descendants(D + "propstat")
+            .Where(PropstatSucceeded)
+            .SelectMany(propstat => propstat.Descendants(property).Elements(D + "href"))
+            .Select(x => x.Value.Trim())
+            .FirstOrDefault(x => x.Length > 0);
+
+    private static bool PropstatSucceeded(XElement propstat)
+    {
+        var status = propstat.Element(D + "status")?.Value.Trim();
+        var parts = status?.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        return parts is { Length: >= 2 } && int.TryParse(parts[1], out var code) && code is >= 200 and < 300;
     }
 
     public void Dispose() => _http.Dispose();

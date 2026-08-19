@@ -4,6 +4,8 @@ namespace NetEaseCalDav;
 
 public sealed record CalDavConfig(Uri ServerUrl, string Username, string Password, string TimeZone, string? DefaultCalendar)
 {
+    public IReadOnlySet<string> AllowedHosts { get; init; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
     public static CalDavConfig FromEnvironment()
     {
         var server = Environment.GetEnvironmentVariable("CALDAV_SERVER_URL");
@@ -20,7 +22,22 @@ public sealed record CalDavConfig(Uri ServerUrl, string Username, string Passwor
             throw new CliException("INVALID_ARGUMENT", "CALDAV_SERVER_URL must be an absolute HTTPS URL", 2);
         try { _ = TimeZoneInfo.FindSystemTimeZoneById(timezone!); }
         catch { throw new CliException("INVALID_ARGUMENT", "CALDAV_TIMEZONE must be a valid IANA timezone", 2); }
-        return new CalDavConfig(uri, username!, password!, timezone!, Environment.GetEnvironmentVariable("CALDAV_DEFAULT_CALENDAR"));
+        var allowedHosts = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { uri.Host };
+        var extraHosts = Environment.GetEnvironmentVariable("CALDAV_ALLOWED_HOSTS");
+        if (!string.IsNullOrWhiteSpace(extraHosts))
+        {
+            foreach (var host in extraHosts.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            {
+                if (host.Contains("/", StringComparison.Ordinal) || host.Contains(":", StringComparison.Ordinal))
+                    throw new CliException("INVALID_ARGUMENT", "CALDAV_ALLOWED_HOSTS must contain host names only", 2);
+                allowedHosts.Add(host);
+            }
+        }
+
+        return new CalDavConfig(uri, username!, password!, timezone!, Environment.GetEnvironmentVariable("CALDAV_DEFAULT_CALENDAR"))
+        {
+            AllowedHosts = allowedHosts
+        };
     }
 }
 

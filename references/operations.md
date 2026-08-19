@@ -4,6 +4,8 @@
 
 Require `CALDAV_SERVER_URL`, `CALDAV_USERNAME`, `CALDAV_PASSWORD`, and `CALDAV_TIMEZONE`. The server must be an absolute HTTPS URL. `CALDAV_DEFAULT_CALENDAR` is optional. Configure secrets through OpenClaw skill environment settings or Docker secret/environment injection, never command arguments.
 
+If the server returns CalDAV resource URLs on a trusted hostname different from `CALDAV_SERVER_URL`, optionally set `CALDAV_ALLOWED_HOSTS` to a comma-separated host allowlist, for example `caldav.qiye.163.com,caldavhz.qiye.163.com`. Host names only are accepted; schemes, paths, and ports are rejected.
+
 ## Commands
 
 | Operation | Command | Confirmation |
