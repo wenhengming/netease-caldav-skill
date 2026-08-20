@@ -6,6 +6,7 @@ var tests = new (string Name, Func<Task> Run)[]
 {
     ("ICS round-trip fields", TestIcs),
     ("NetEase ICS extensions", TestNetEaseIcsExtensions),
+    ("TZID timezone conversion", TestDawsonTimeZone),
     ("NetEase fallback discovery", TestFallbackDiscovery),
     ("Delete requires confirmation", TestDeleteConfirmation),
     ("Cross-origin href rejected", TestCrossOrigin),
@@ -40,7 +41,20 @@ static Task TestNetEaseIcsExtensions()
     var events = IcsCodec.ParseEvents(ics, "https://calendar.example/netease.ics", "\"v1\"", warnings);
     Assert(events.Count == 1, "NetEase extension event was not parsed");
     Assert(events[0].Summary == "NetEase meeting", "NetEase event summary did not parse");
+    Assert(events[0].Start == "2026-08-19T09:00:00-07:00", "TZID was not preserved with its offset");
+    Assert(events[0].End == "2026-08-19T10:00:00-07:00", "TZID end was not preserved with its offset");
     Assert(warnings.Count == 0, "NetEase extension produced an unexpected warning");
+    return Task.CompletedTask;
+}
+
+static Task TestDawsonTimeZone()
+{
+    const string ics = "BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\nUID:dawson-1\r\nDTSTART;TZID=America/Dawson:20260822T203000\r\nDTEND;TZID=America/Dawson:20260822T210000\r\nSUMMARY:Timezone test\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n";
+    var warnings = new List<string>();
+    var events = IcsCodec.ParseEvents(ics, "https://calendar.example/dawson.ics", "\"v1\"", warnings);
+    Assert(events.Count == 1, "Dawson event was not parsed");
+    Assert(events[0].Start == "2026-08-22T20:30:00-07:00", "Dawson start was not preserved with its offset");
+    Assert(events[0].End == "2026-08-22T21:00:00-07:00", "Dawson end was not preserved with its offset");
     return Task.CompletedTask;
 }
 

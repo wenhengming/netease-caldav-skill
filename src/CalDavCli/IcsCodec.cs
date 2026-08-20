@@ -44,7 +44,7 @@ public static class IcsCodec
             var allDay = start.RawKey?.Contains("VALUE=DATE", StringComparison.OrdinalIgnoreCase) == true || (start.Value?.Length == 8 && !start.Value.Contains('T'));
             result.Add(new EventInfo(
                 Unescape(uid.Value), href, etag,
-                Get(fields, "SUMMARY"), NormalizeDate(start.Value), NormalizeDate(end.Value), allDay,
+                Get(fields, "SUMMARY"), NormalizeDate(start.Value, GetParameter(start.RawKey, "TZID"), allDay), NormalizeDate(end.Value, GetParameter(end.RawKey, "TZID"), allDay), allDay,
                 GetParameter(start.RawKey, "TZID"), Get(fields, "LOCATION"), Get(fields, "DESCRIPTION")));
         }
         return result;
@@ -94,12 +94,33 @@ public static class IcsCodec
 
     private static string Get(Dictionary<string, (string RawKey, string Value)> fields, string key) => fields.TryGetValue(key, out var v) ? Unescape(v.Value) : string.Empty;
     private static string? GetParameter(string? rawKey, string name) => rawKey?.Split(';').Skip(1).Select(x => x.Split('=', 2)).FirstOrDefault(x => x.Length == 2 && x[0].Equals(name, StringComparison.OrdinalIgnoreCase))?.ElementAt(1);
-    private static string? NormalizeDate(string? value)
+    private static string? NormalizeDate(string? value, string? timeZoneId, bool allDay)
     {
         if (string.IsNullOrWhiteSpace(value)) return null;
-        string[] formats = ["yyyyMMdd'T'HHmmss'Z'", "yyyyMMdd'T'HHmmss", "yyyyMMdd"];
-        if (DateTime.TryParseExact(value, formats, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out var parsed))
-            return parsed.ToString(value.Length == 8 ? "yyyy-MM-dd" : "yyyy-MM-dd'T'HH:mm:ss'Z'", CultureInfo.InvariantCulture);
+        if (allDay && DateTime.TryParseExact(value, "yyyyMMdd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var date))
+            return date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+
+        if (DateTime.TryParseExact(value, "yyyyMMdd'T'HHmmss'Z'", CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out var utc))
+            return utc.ToString("yyyy-MM-dd'T'HH:mm:ss'Z'", CultureInfo.InvariantCulture);
+
+        if (DateTime.TryParseExact(value, "yyyyMMdd'T'HHmmss", CultureInfo.InvariantCulture, DateTimeStyles.None, out var local))
+        {
+            if (!string.IsNullOrWhiteSpace(timeZoneId))
+            {
+                try
+                {
+                    var zone = TimeZoneInfo.FindSystemTimeZoneById(timeZoneId);
+                    var unspecified = DateTime.SpecifyKind(local, DateTimeKind.Unspecified);
+                    var offset = zone.GetUtcOffset(unspecified);
+                    return new DateTimeOffset(unspecified, offset).ToString("yyyy-MM-dd'T'HH:mm:sszzz", CultureInfo.InvariantCulture);
+                }
+                catch (TimeZoneNotFoundException) { }
+                catch (InvalidTimeZoneException) { }
+            }
+
+            // Floating times have no offset. Do not invent a timezone.
+            return local.ToString("yyyy-MM-dd'T'HH:mm:ss", CultureInfo.InvariantCulture);
+        }
         return value;
     }
     private static string Escape(string value) => value.Replace("\\", "\\\\").Replace(";", "\\;").Replace(",", "\\,").Replace("\r\n", "\\n").Replace("\n", "\\n");
