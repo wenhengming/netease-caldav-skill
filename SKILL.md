@@ -27,7 +27,7 @@ Run read-only commands without confirmation after resolving the date range and c
 {baseDir}/bin/caldav-cli events --calendar <id> --from <ISO-8601> --to <ISO-8601>
 ```
 
-For `events`, show every event field returned by the CLI without dropping or renaming fields: `uid`, `href`, `eTag`, `summary`, `start`, `end`, `allDay`, `timeZone`, `location`, and `description`. Preserve the ISO-8601 offset in `start` and `end`, and show the complete `warnings` array. Do not replace the full event objects with a shortened summary. The user explicitly requesting full details is permission to include the event `href`; otherwise keep internal URLs out of the reply. On `AUTH_FAILED`, ask the operator to verify the configured secret; do not retry. Retry a read once only when `retryable` is true.
+For `events`, show every event field returned by the CLI without dropping or renaming fields: `uid`, `href`, `eTag`, `summary`, `start`, `end`, `allDay`, `timeZone`, `sourceTimeZone`, `location`, and `description`. The CLI converts timed events to the configured `CALDAV_TIMEZONE` while retaining the ICS timezone in `sourceTimeZone`; preserve the ISO-8601 offset in `start` and `end`, and show the complete `warnings` array. Do not replace the full event objects with a shortened summary. The user explicitly requesting full details is permission to include the event `href`; otherwise keep internal URLs out of the reply. On `AUTH_FAILED`, ask the operator to verify the configured secret; do not retry. Retry a read once only when `retryable` is true.
 
 ## Create events
 

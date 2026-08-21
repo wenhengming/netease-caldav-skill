@@ -38,7 +38,7 @@ static Task TestNetEaseIcsExtensions()
 {
     const string ics = "BEGIN:VCALENDAR\r\nPRODID:-//Netease Corporation//EN\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nUID:netease-1\r\nDTSTART;TZID=America/Los_Angeles:20260819T090000\r\nDTEND;TZID=America/Los_Angeles:20260819T100000\r\nSUMMARY:NetEase meeting\r\nX-HMC-ACTION:UPDATE\r\nBEGIN:VALARM\r\nACTION:DISPLAY\r\nDESCRIPTION:Reminder\r\nTRIGGER:-PT15M\r\nEND:VALARM\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n";
     var warnings = new List<string>();
-    var events = IcsCodec.ParseEvents(ics, "https://calendar.example/netease.ics", "\"v1\"", warnings);
+    var events = IcsCodec.ParseEvents(ics, "https://calendar.example/netease.ics", "\"v1\"", warnings, "America/Los_Angeles");
     Assert(events.Count == 1, "NetEase extension event was not parsed");
     Assert(events[0].Summary == "NetEase meeting", "NetEase event summary did not parse");
     Assert(events[0].Start == "2026-08-19T09:00:00-07:00", "TZID was not preserved with its offset");
@@ -51,10 +51,12 @@ static Task TestDawsonTimeZone()
 {
     const string ics = "BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\nUID:dawson-1\r\nDTSTART;TZID=America/Dawson:20260822T203000\r\nDTEND;TZID=America/Dawson:20260822T210000\r\nSUMMARY:Timezone test\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n";
     var warnings = new List<string>();
-    var events = IcsCodec.ParseEvents(ics, "https://calendar.example/dawson.ics", "\"v1\"", warnings);
+    var events = IcsCodec.ParseEvents(ics, "https://calendar.example/dawson.ics", "\"v1\"", warnings, "America/Los_Angeles");
     Assert(events.Count == 1, "Dawson event was not parsed");
     Assert(events[0].Start == "2026-08-22T20:30:00-07:00", "Dawson start was not preserved with its offset");
     Assert(events[0].End == "2026-08-22T21:00:00-07:00", "Dawson end was not preserved with its offset");
+    Assert(events[0].TimeZone == "America/Los_Angeles", "display timezone was not applied");
+    Assert(events[0].SourceTimeZone == "America/Dawson", "source timezone was not preserved");
     return Task.CompletedTask;
 }
 

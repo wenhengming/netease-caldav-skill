@@ -5,7 +5,7 @@ namespace NetEaseCalDav;
 
 public static class IcsCodec
 {
-    public static IReadOnlyList<EventInfo> ParseEvents(string ics, string href, string etag, List<string> warnings)
+    public static IReadOnlyList<EventInfo> ParseEvents(string ics, string href, string etag, List<string> warnings, string? displayTimeZoneId = null)
     {
         var lines = Unfold(ics);
         var result = new List<EventInfo>();
@@ -42,10 +42,11 @@ public static class IcsCodec
             fields.TryGetValue("DTSTART", out var start);
             fields.TryGetValue("DTEND", out var end);
             var allDay = start.RawKey?.Contains("VALUE=DATE", StringComparison.OrdinalIgnoreCase) == true || (start.Value?.Length == 8 && !start.Value.Contains('T'));
+            var sourceTimeZone = GetParameter(start.RawKey, "TZID");
             result.Add(new EventInfo(
                 Unescape(uid.Value), href, etag,
-                Get(fields, "SUMMARY"), NormalizeDate(start.Value, GetParameter(start.RawKey, "TZID"), allDay), NormalizeDate(end.Value, GetParameter(end.RawKey, "TZID"), allDay), allDay,
-                GetParameter(start.RawKey, "TZID"), Get(fields, "LOCATION"), Get(fields, "DESCRIPTION")));
+                Get(fields, "SUMMARY"), NormalizeDate(start.Value, sourceTimeZone, displayTimeZoneId, allDay), NormalizeDate(end.Value, GetParameter(end.RawKey, "TZID"), displayTimeZoneId, allDay), allDay,
+                displayTimeZoneId ?? sourceTimeZone, sourceTimeZone, Get(fields, "LOCATION"), Get(fields, "DESCRIPTION")));
         }
         return result;
     }
@@ -94,34 +95,38 @@ public static class IcsCodec
 
     private static string Get(Dictionary<string, (string RawKey, string Value)> fields, string key) => fields.TryGetValue(key, out var v) ? Unescape(v.Value) : string.Empty;
     private static string? GetParameter(string? rawKey, string name) => rawKey?.Split(';').Skip(1).Select(x => x.Split('=', 2)).FirstOrDefault(x => x.Length == 2 && x[0].Equals(name, StringComparison.OrdinalIgnoreCase))?.ElementAt(1);
-    private static string? NormalizeDate(string? value, string? timeZoneId, bool allDay)
+    private static string? NormalizeDate(string? value, string? sourceTimeZoneId, string? displayTimeZoneId, bool allDay)
     {
         if (string.IsNullOrWhiteSpace(value)) return null;
         if (allDay && DateTime.TryParseExact(value, "yyyyMMdd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var date))
             return date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
 
-        if (DateTime.TryParseExact(value, "yyyyMMdd'T'HHmmss'Z'", CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out var utc))
-            return utc.ToString("yyyy-MM-dd'T'HH:mm:ss'Z'", CultureInfo.InvariantCulture);
-
-        if (DateTime.TryParseExact(value, "yyyyMMdd'T'HHmmss", CultureInfo.InvariantCulture, DateTimeStyles.None, out var local))
+        DateTimeOffset instant;
+        if (DateTimeOffset.TryParseExact(value, "yyyyMMdd'T'HHmmss'Z'", CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var utc))
+            instant = utc.ToUniversalTime();
+        else if (DateTime.TryParseExact(value, "yyyyMMdd'T'HHmmss", CultureInfo.InvariantCulture, DateTimeStyles.None, out var local))
         {
-            if (!string.IsNullOrWhiteSpace(timeZoneId))
-            {
-                try
-                {
-                    var zone = TimeZoneInfo.FindSystemTimeZoneById(timeZoneId);
-                    var unspecified = DateTime.SpecifyKind(local, DateTimeKind.Unspecified);
-                    var offset = zone.GetUtcOffset(unspecified);
-                    return new DateTimeOffset(unspecified, offset).ToString("yyyy-MM-dd'T'HH:mm:sszzz", CultureInfo.InvariantCulture);
-                }
-                catch (TimeZoneNotFoundException) { }
-                catch (InvalidTimeZoneException) { }
-            }
-
-            // Floating times have no offset. Do not invent a timezone.
-            return local.ToString("yyyy-MM-dd'T'HH:mm:ss", CultureInfo.InvariantCulture);
+            var sourceZone = FindTimeZone(sourceTimeZoneId) ?? FindTimeZone(displayTimeZoneId);
+            var unspecified = DateTime.SpecifyKind(local, DateTimeKind.Unspecified);
+            var offset = sourceZone?.GetUtcOffset(unspecified) ?? TimeSpan.Zero;
+            instant = new DateTimeOffset(unspecified, offset).ToUniversalTime();
         }
-        return value;
+        else return value;
+
+        if (!string.IsNullOrWhiteSpace(displayTimeZoneId))
+        {
+            var displayZone = FindTimeZone(displayTimeZoneId);
+            if (displayZone is not null)
+                return TimeZoneInfo.ConvertTime(instant, displayZone).ToString("yyyy-MM-dd'T'HH:mm:sszzz", CultureInfo.InvariantCulture);
+        }
+        return instant.ToString("yyyy-MM-dd'T'HH:mm:sszzz", CultureInfo.InvariantCulture);
+    }
+    private static TimeZoneInfo? FindTimeZone(string? id)
+    {
+        if (string.IsNullOrWhiteSpace(id)) return null;
+        try { return TimeZoneInfo.FindSystemTimeZoneById(id); }
+        catch (TimeZoneNotFoundException) { return null; }
+        catch (InvalidTimeZoneException) { return null; }
     }
     private static string Escape(string value) => value.Replace("\\", "\\\\").Replace(";", "\\;").Replace(",", "\\,").Replace("\r\n", "\\n").Replace("\n", "\\n");
     private static string Unescape(string value) => value.Replace("\\n", "\n", StringComparison.OrdinalIgnoreCase).Replace("\\,", ",").Replace("\\;", ";").Replace("\\\\", "\\");

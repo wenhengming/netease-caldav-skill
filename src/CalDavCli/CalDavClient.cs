@@ -78,7 +78,7 @@ public sealed class CalDavClient : IDisposable
             var etag = item.Descendants(D + "getetag").Select(x => x.Value.Trim()).FirstOrDefault() ?? string.Empty;
             var data = item.Descendants(C + "calendar-data").Select(x => x.Value).FirstOrDefault();
             if (string.IsNullOrWhiteSpace(data)) continue;
-            try { events.AddRange(IcsCodec.ParseEvents(data, ToSafeUri(href).ToString(), etag, warnings)); }
+            try { events.AddRange(IcsCodec.ParseEvents(data, ToSafeUri(href).ToString(), etag, warnings, _config.TimeZone)); }
             catch { warnings.Add($"Skipped malformed event at {href}"); }
         }
         return (events, warnings);

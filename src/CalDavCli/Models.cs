@@ -42,7 +42,7 @@ public sealed record CalDavConfig(Uri ServerUrl, string Username, string Passwor
 }
 
 public sealed record CalendarInfo(string Id, string Url, string DisplayName, string Description);
-public sealed record EventInfo(string Uid, string Href, string ETag, string Summary, string? Start, string? End, bool AllDay, string? TimeZone, string Location, string Description);
+public sealed record EventInfo(string Uid, string Href, string ETag, string Summary, string? Start, string? End, bool AllDay, string? TimeZone, string? SourceTimeZone, string Location, string Description);
 
 public sealed class CliException : Exception
 {
