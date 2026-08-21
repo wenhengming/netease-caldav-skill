@@ -29,6 +29,31 @@ Run read-only commands without confirmation after resolving the date range and c
 
 For `events`, the default response must include the complete CLI JSON document in a fenced `json` code block before any explanation or optional table. Show every event field returned by the CLI without dropping or renaming fields: `uid`, `href`, `eTag`, `summary`, `start`, `end`, `allDay`, `timeZone`, `sourceTimeZone`, `location`, and `description`. The CLI converts timed events to the configured `CALDAV_TIMEZONE` while retaining the ICS timezone in `sourceTimeZone`; preserve the ISO-8601 offset in `start` and `end`, and show the complete `warnings` array. Never replace the full event objects with a shortened summary or table alone. Do not infer that events are abnormal and do not offer to delete them unless the user explicitly asks. The user explicitly requesting full details is permission to include the event `href`; otherwise keep internal URLs out of the reply. On `AUTH_FAILED`, ask the operator to verify the configured secret; do not retry. Retry a read once only when `retryable` is true.
 
+Example of the required full response shape (use the actual CLI values; these values are fictional):
+
+```json
+{
+  "ok": true,
+  "command": "events",
+  "data": [
+    {
+      "uid": "example-event-1",
+      "href": "https://calendar.example/events/example-event-1.ics",
+      "eTag": "\"v3\"",
+      "summary": "Team meeting",
+      "start": "2026-08-22T10:00:00-07:00",
+      "end": "2026-08-22T11:00:00-07:00",
+      "allDay": false,
+      "timeZone": "America/Los_Angeles",
+      "sourceTimeZone": "America/Denver",
+      "location": "Room A",
+      "description": "Project review"
+    }
+  ],
+  "warnings": []
+}
+```
+
 ## Create events
 
 Resolve and present the calendar, summary, start, end, and timezone. If the user's current request explicitly and unambiguously contains these values, execute it. Otherwise ask only for the missing or ambiguous value.
