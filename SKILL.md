@@ -27,7 +27,7 @@ Run read-only commands without confirmation after resolving the date range and c
 {baseDir}/bin/caldav-cli events --calendar <id> --from <ISO-8601> --to <ISO-8601>
 ```
 
-For `events`, the default response must include the complete CLI JSON document in a fenced `json` code block before any explanation or optional table. Show every event field returned by the CLI without dropping or renaming fields: `uid`, `href`, `eTag`, `summary`, `start`, `end`, `allDay`, `timeZone`, `sourceTimeZone`, `location`, and `description`. The CLI converts timed events to the configured `CALDAV_TIMEZONE` while retaining the ICS timezone in `sourceTimeZone`; preserve the ISO-8601 offset in `start` and `end`, and show the complete `warnings` array. Never replace the full event objects with a shortened summary or table alone. Do not infer that events are abnormal and do not offer to delete them unless the user explicitly asks. The user explicitly requesting full details is permission to include the event `href`; otherwise keep internal URLs out of the reply. On `AUTH_FAILED`, ask the operator to verify the configured secret; do not retry. Retry a read once only when `retryable` is true.
+For `events`, the default user-facing response must be readable Markdown, not raw JSON. Include every event field returned by the CLI without dropping or renaming fields: `uid`, `href`, `eTag`, `summary`, `start`, `end`, `allDay`, `timeZone`, `sourceTimeZone`, `location`, and `description`. The CLI converts timed events to the configured `CALDAV_TIMEZONE` while retaining the ICS timezone in `sourceTimeZone`; preserve the ISO-8601 offset in `start` and `end`, and show the complete `warnings` array. Use a heading plus one detail block per event (or a Markdown table followed by complete detail blocks); never use a summary table alone. Do not output raw JSON unless the user explicitly requests JSON. Do not infer that events are abnormal and do not offer to delete them unless the user explicitly asks. The user explicitly requesting full details is permission to include the event `href`; otherwise keep internal URLs out of the reply. On `AUTH_FAILED`, ask the operator to verify the configured secret; do not retry. Retry a read once only when `retryable` is true.
 
 Example of the required full response shape (use the actual CLI values; these values are fictional):
 
@@ -53,6 +53,25 @@ Example of the required full response shape (use the actual CLI values; these va
   "warnings": []
 }
 ```
+
+Example of the required user-facing Markdown (use the actual CLI values; these values are fictional):
+
+### Events (1)
+
+#### 1. Team meeting
+
+- **UID:** `example-event-1`
+- **URL:** `https://calendar.example/events/example-event-1.ics`
+- **eTag:** `"v3"`
+- **Start:** `2026-08-22T10:00:00-07:00`
+- **End:** `2026-08-22T11:00:00-07:00`
+- **Display timezone:** `America/Los_Angeles`
+- **Source timezone:** `America/Denver`
+- **All day:** `false`
+- **Location:** Room A
+- **Description:** Project review
+
+Warnings: none.
 
 ## Create events
 
