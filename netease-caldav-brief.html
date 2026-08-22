@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>网易企業郵箱日程同步至 daodao my calendar｜需求 Brief</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #172033;
+      --muted: #5d687c;
+      --line: #dce3ee;
+      --soft: #f5f7fb;
+      --brand: #315efb;
+      --brand-soft: #eef2ff;
+      --warn: #8a4b08;
+      --warn-soft: #fff7e8;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background: #eef1f6;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang TC", "Microsoft JhengHei", sans-serif;
+      line-height: 1.7;
+    }
+    main {
+      width: min(1100px, calc(100% - 32px));
+      margin: 32px auto 64px;
+      background: #fff;
+      padding: clamp(24px, 5vw, 64px);
+      border-radius: 18px;
+      box-shadow: 0 14px 45px rgba(31, 46, 77, .10);
+    }
+    header { border-bottom: 1px solid var(--line); padding-bottom: 28px; margin-bottom: 36px; }
+    .eyebrow { color: var(--brand); font-size: .9rem; font-weight: 700; letter-spacing: .08em; }
+    h1 { margin: 8px 0 0; font-size: clamp(1.8rem, 4vw, 2.8rem); line-height: 1.25; }
+    h2 { margin: 46px 0 16px; padding-bottom: 8px; border-bottom: 2px solid var(--brand); font-size: 1.45rem; }
+    h3 { margin: 28px 0 10px; font-size: 1.08rem; }
+    p { margin: 8px 0 14px; }
+    ul, ol { padding-left: 1.5rem; }
+    li + li { margin-top: 6px; }
+    table { width: 100%; border-collapse: collapse; margin: 14px 0 24px; font-size: .95rem; }
+    th, td { border: 1px solid var(--line); padding: 10px 12px; text-align: left; vertical-align: top; }
+    th { background: var(--soft); font-weight: 700; }
+    .callout { padding: 16px 18px; border-left: 4px solid var(--brand); background: var(--brand-soft); border-radius: 8px; margin: 16px 0; }
+    .pending { padding: 16px 18px; border-left: 4px solid #e9a23b; background: var(--warn-soft); color: var(--warn); border-radius: 8px; }
+    .flow { overflow-x: auto; background: #fbfcff; border: 1px solid var(--line); border-radius: 10px; padding: 16px; }
+    pre { margin: 0; white-space: pre-wrap; font: .9rem/1.6 ui-monospace, SFMono-Regular, Consolas, monospace; }
+    code { background: var(--soft); border-radius: 4px; padding: .1em .35em; font-size: .92em; }
+    .mermaid { min-width: 760px; }
+    .footer { color: var(--muted); border-top: 1px solid var(--line); margin-top: 48px; padding-top: 18px; font-size: .9rem; }
+    @media print {
+      body { background: #fff; }
+      main { width: 100%; margin: 0; padding: 0; box-shadow: none; }
+      h2 { break-after: avoid; }
+      table, .callout, .flow { break-inside: avoid; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <div class="eyebrow">需求 BRIEF · v0.1</div>
+      <h1>网易企業郵箱日程同步至 daodao my calendar</h1>
+      <p>集中查看完整會議日程，減少跨系統查看造成的遺漏與衝突。</p>
+    </header>
+
+    <section>
+      <h2>1、背景（事因、客觀因素、出現的問題）</h2>
+      <ul>
+        <li><strong>現況：</strong>使用者會收到許多來自网易企業郵箱的會議邀約，並在网易企業郵箱日程中查看。</li>
+        <li><strong>目前使用的產品：</strong>使用者日常主要使用公司的 <code>daodao my calendar</code>，其中記錄任務與會議類型日程。</li>
+        <li><strong>目前限制：</strong>网易企業郵箱與 <code>daodao my calendar</code> 尚未互通，使用者需要分別查看兩個日曆。</li>
+        <li><strong>造成的影響：</strong>使用者可能漏看其中一個日曆；兩邊日程可能發生時間衝突；使用者需要重複維護或確認日程。</li>
+        <li><strong>相關案例：</strong>网易企業郵箱中已有會議日程，但 <code>daodao my calendar</code> 未同步顯示。</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>2、目的（想要實現的效果、考核指標）</h2>
+      <ol>
+        <li>將网易企業郵箱未來 7 天的會議日程，自動同步至 <code>daodao my calendar</code>。</li>
+        <li>讓使用者主要透過 <code>daodao my calendar</code> 查看完整會議安排，減少跨系統查看造成的遺漏與衝突。</li>
+        <li>當网易日程發生更新或取消時，及時反映到 <code>daodao my calendar</code>。</li>
+      </ol>
+      <h3>考核指標</h3>
+      <table>
+        <thead><tr><th>指標</th><th>目前值</th><th>目標值</th><th>衡量方式</th></tr></thead>
+        <tbody>
+          <tr><td>网易日程同步覆蓋率</td><td>待確認</td><td>≥ 99%</td><td>比對网易企業郵箱與同步結果</td></tr>
+          <tr><td>日程更新同步成功率</td><td>待確認</td><td>≥ 99%</td><td>比對 <code>eTag</code> 變化與 daodao 更新結果</td></tr>
+          <tr><td>取消日程同步成功率</td><td>待確認</td><td>≥ 99%</td><td>比對网易取消狀態與標題更新結果</td></tr>
+          <tr><td>同步延遲</td><td>無自動同步</td><td>≤ 2 小時</td><td>比對來源變更時間與同步完成時間</td></tr>
+          <tr><td>重複建立日程數</td><td>待確認</td><td>0</td><td>以來源 <code>uid</code> 統計重複紀錄</td></tr>
+          <tr><td>同步失敗通知率</td><td>無</td><td>100%</td><td>比對錯誤事件與通知紀錄</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>3、用戶故事</h2>
+      <ol>
+        <li>As a 使用者, I want to 將网易企業郵箱未來 7 天的會議日程同步到 <code>daodao my calendar</code>, so that 我只需要查看一個日曆即可掌握完整會議安排。</li>
+        <li>As a 使用者, I want to 在网易日程更新後同步更新 daodao 中對應的會議, so that 我不會依照過期的會議時間或內容參與會議。</li>
+        <li>As a 使用者, I want to 在网易日程取消後看到「網易日程已取消」標記, so that 我能知道原本的會議已取消，而不是誤以為同步失敗。</li>
+        <li>As a 使用者, I want to 在同步失敗或授權失效時收到通知, so that 我能及時處理同步問題。</li>
+      </ol>
+    </section>
+
+    <section>
+      <h2>4、產品結構</h2>
+      <ul>
+        <li><strong>所屬產品：</strong><code>daodao my calendar</code></li>
+        <li><strong>所屬模組：</strong>會議日程／外部日曆同步</li>
+        <li><strong>新增／調整的功能：</strong>网易企業郵箱 CalDAV 日程讀取、同步建立、更新同步、取消標記、定時同步、錯誤與授權失效通知。</li>
+        <li><strong>與既有功能的關係：</strong>使用目前的 <code>netease-caldav-skill</code> 讀取网易日程，並使用既有的 daodao 建立日程接口。</li>
+        <li><strong>範圍限制：</strong>只做网易企業郵箱到 <code>daodao my calendar</code> 的單向同步；不查詢或比對 daodao 中已有的會議；不處理從 daodao 回寫网易的變更。</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>5、核心流程描述</h2>
+      <h3>流程參與者／系統</h3>
+      <ul>
+        <li>使用者</li>
+        <li><code>netease-caldav-skill</code></li>
+        <li>网易企業郵箱 CalDAV</li>
+        <li><code>daodao my calendar</code> API</li>
+        <li>定時執行機制</li>
+        <li>錯誤通知機制</li>
+      </ul>
+      <h3>流程圖</h3>
+      <div class="flow">
+        <pre class="mermaid">flowchart TD
+    A[定時觸發同步] --> B[取得网易未來 7 天日程]
+    B --> C{网易日程是否已有同步紀錄}
+    C -->|否| D[在 daodao 建立會議日程]
+    C -->|是| E{uid 或 eTag 是否發生變化}
+    E -->|否| F[略過日程]
+    E -->|是| G{网易日程是否已取消}
+    G -->|否| H[更新 daodao 對應日程]
+    G -->|是| I[將標題標記為網易日程已取消]
+    D --> J[保存 uid、eTag 與對應關係]
+    H --> J
+    I --> J
+    B --> K{是否發生錯誤}
+    K -->|是| L[發送錯誤通知]
+    K -->|否| M[同步完成]</pre>
+      </div>
+      <h3>文字流程</h3>
+      <ol>
+        <li>定時機制每 2 小時觸發一次同步。</li>
+        <li><code>netease-caldav-skill</code> 查詢网易企業郵箱未來 7 天的日程。</li>
+        <li>系統使用网易日程的 <code>uid</code> 判斷是否曾經同步過。</li>
+        <li>對於未同步過的日程，在 <code>daodao my calendar</code> 建立「會議」類型日程。</li>
+        <li>對於已同步日程，使用 <code>eTag</code> 判斷內容是否發生變化。</li>
+        <li>若日程內容有變化，更新 daodao 中對應的日程。</li>
+        <li>若网易日程被取消，將 daodao 中對應日程的標題標記為「網易日程已取消」。</li>
+        <li>不查詢或比對 daodao 內其他既有會議，直接依同步紀錄建立或更新對應日程。</li>
+        <li>若同步失敗、授權失效或 daodao API 呼叫失敗，發送錯誤通知。</li>
+        <li>同步成功後保存來源 <code>uid</code>、<code>eTag</code>、來源 URL 與 daodao 日程對應關係，避免同一來源日程被重複建立。</li>
+      </ol>
+    </section>
+
+    <section>
+      <h2>6、名詞解釋</h2>
+      <table>
+        <thead><tr><th>名詞</th><th>定義</th></tr></thead>
+        <tbody>
+          <tr><td><code>netease-caldav-skill</code></td><td>用於連接网易企業郵箱 CalDAV 並讀取日程的 OpenClaw skill。</td></tr>
+          <tr><td>网易企業郵箱</td><td>使用者收到會議邀約與保存原始日程的郵箱系統。</td></tr>
+          <tr><td><code>daodao my calendar</code></td><td>公司使用的日曆系統，用於集中查看任務與會議。</td></tr>
+          <tr><td>CalDAV</td><td>用於存取日曆資料的標準協議。</td></tr>
+          <tr><td><code>uid</code></td><td>网易日程的唯一識別碼，用於判斷是否為同一個來源日程。</td></tr>
+          <tr><td><code>eTag</code></td><td>网易日程的版本識別碼，用於判斷日程內容是否更新。</td></tr>
+          <tr><td>同步窗口</td><td>每次同步時查詢的日期範圍，目前設定為未來 7 天。</td></tr>
+          <tr><td>取消標記</td><td>將 daodao 日程標題改為「網易日程已取消」的處理方式。</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <div class="footer">需求 Brief v0.1｜本文件包含第 1–6 節，待確認事項另行管理。</div>
+  </main>
+</body>
+</html>
